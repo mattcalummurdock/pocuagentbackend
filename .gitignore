@@ -15,5 +15,6 @@ deployments/testnet.json
 deployments/hts.json
 *.log
 /agent/venv
-/data
+/data/*
+!/data/fraud_sample.csv
 docs/
