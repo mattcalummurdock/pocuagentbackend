@@ -234,4 +234,8 @@ def get_training_job_status(job_id: str) -> dict[str, Any]:
     job = get_job(job_id)
     if not job:
         return {"error": "Job not found"}
+    logs = str(job.get("logs") or "")
+    if logs:
+        job = dict(job)
+        job["logs"] = logs[-400:] if len(logs) > 400 else logs
     return job
