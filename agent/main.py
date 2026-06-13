@@ -18,6 +18,7 @@ from agent_core import run_agent_chat
 from job_worker_loop import start_background_worker
 from supabase_client import (
     create_thread,
+    ensure_job_data_bucket,
     get_job,
     get_thread,
     list_jobs,
@@ -113,6 +114,10 @@ def _assistant_metadata(assistant: dict[str, Any]) -> dict[str, Any]:
 
 @app.on_event("startup")
 def startup() -> None:
+    try:
+        ensure_job_data_bucket()
+    except Exception as exc:
+        print(f"[agent] Warning: job-data storage bucket not ready: {exc}")
     if os.getenv("AGENT_EMBEDDED_WORKER", "").strip() in ("1", "true", "yes"):
         start_background_worker(interval_sec=15)
         print("[agent] Embedded job worker: ON (set AGENT_EMBEDDED_WORKER=0 if using npm run jobs:worker)")
