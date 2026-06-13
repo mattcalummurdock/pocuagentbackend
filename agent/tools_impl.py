@@ -5,11 +5,12 @@ import os
 import re
 import subprocess
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
 from kaggle_client import download_dataset, inspect_dataset, search_datasets
-from supabase_client import create_job, get_job, upload_job_prepared_files
+from supabase_client import create_job, get_job, get_supabase, upload_job_prepared_files
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARCH_PATH = Path(__file__).resolve().parent / "architectures.json"
@@ -220,8 +221,19 @@ def trigger_training_job(
     try:
         upload_job_prepared_files(job_uuid, prepared["metadata_path"])
     except Exception as exc:
-        # Job row exists; worker will fail with a clear message if download fails.
-        print(f"[agent] Warning: could not upload prepared files to Supabase storage: {exc}")
+        err = f"Could not upload prepared data to Supabase storage: {exc}"
+        print(f"[agent] ERROR: {err}")
+        try:
+            get_supabase().table("training_jobs").update(
+                {
+                    "status": "failed",
+                    "error_message": err,
+                    "completed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            ).eq("id", job_uuid).execute()
+        except Exception:
+            pass
+        raise RuntimeError(err) from exc
     return {
         "job_id": created["id"],
         "status": "pending",
