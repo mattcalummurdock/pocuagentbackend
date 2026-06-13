@@ -412,7 +412,20 @@ async def chat(req: ChatRequest) -> StreamingResponse:
                 meta if meta else None,
             )
         except Exception as e:
-            yield {"type": "text", "content": f"Error: {e}"}
+            err = str(e)
+            if any(
+                token in err.lower()
+                for token in ("rate_limit", "too large", "tokens per minute", "413")
+            ):
+                yield {
+                    "type": "text",
+                    "content": (
+                        "This chat thread is too long for the AI model limit. "
+                        "Start a **new chat** and try again with a shorter message."
+                    ),
+                }
+            else:
+                yield {"type": "text", "content": f"Error: {e}"}
 
     async def sse():
         async for event in stream():
