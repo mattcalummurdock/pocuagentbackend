@@ -2,6 +2,15 @@
 
 import { type ReactNode, useState } from "react";
 import { useWallet } from "./WalletProvider";
+import { PocuLogo } from "@/components/PocuLogo";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const { accountId, connecting, connect, ready } = useWallet();
@@ -9,15 +18,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--muted)",
-        }}
-      >
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
         Initializing wallet…
       </div>
     );
@@ -25,63 +26,35 @@ export function WalletGate({ children }: { children: ReactNode }) {
 
   if (!accountId) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "2rem",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 420,
-            width: "100%",
-            textAlign: "center",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 16,
-            padding: "2.5rem 2rem",
-          }}
-        >
-          <h1 style={{ margin: "0 0 0.75rem", fontSize: "1.5rem" }}>On-Chain CPU</h1>
-          <p style={{ margin: "0 0 1.5rem", color: "var(--muted)", lineHeight: 1.5 }}>
-            Connect your HashPack wallet to train on-chain ML models on Hedera testnet.
-            You will authorize a 200 HBAR spending allowance when you start training.
-          </p>
-          {error && (
-            <p style={{ color: "var(--danger)", fontSize: "0.85rem", marginBottom: "1rem" }}>
-              {error}
-            </p>
-          )}
-          <button
-            type="button"
-            disabled={connecting}
-            onClick={() => {
-              setError(null);
-              void connect().catch((e) =>
-                setError(e instanceof Error ? e.message : String(e))
-              );
-            }}
-            style={{
-              width: "100%",
-              background: "var(--accent)",
-              border: "none",
-              borderRadius: 10,
-              padding: "0.85rem 1rem",
-              fontSize: "1rem",
-              fontWeight: 600,
-              color: "#fff",
-              cursor: connecting ? "wait" : "pointer",
-            }}
-          >
-            {connecting ? "Connecting…" : "Connect Wallet"}
-          </button>
-          <p style={{ margin: "1.25rem 0 0", fontSize: "0.75rem", color: "var(--muted)" }}>
-            Requires HashPack with WalletConnect enabled on Hedera testnet.
-          </p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center p-8">
+        <Card className="w-full max-w-md animate-in fade-in slide-in-from-bottom-4 border-border duration-500">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-3">
+              <PocuLogo size={72} className="mx-auto shadow-[0_0_24px_oklch(0.7_0.18_145/0.35)]" priority />
+            </div>
+            <CardTitle className="text-2xl">POCU</CardTitle>
+            <CardDescription className="text-base leading-relaxed">
+              Connect your HashPack wallet to continue
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {error && (
+              <p className="text-center text-sm text-destructive">{error}</p>
+            )}
+            <Button
+              className="h-11 w-full bg-accent text-accent-foreground hover:bg-accent/90"
+              disabled={connecting}
+              onClick={() => {
+                setError(null);
+                void connect().catch((e) =>
+                  setError(e instanceof Error ? e.message : String(e))
+                );
+              }}
+            >
+              {connecting ? "Connecting…" : "Connect Wallet"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -6,7 +6,6 @@ import { ethers } from "hardhat";
 import { preprocessFraudData, loadFraudCsv } from "../src/preprocess";
 import { loadPreparedSamples } from "../src/preprocess-tabular";
 import { StepLogger } from "../src/logger";
-import { getOrCreateTopic } from "../src/hcs";
 import { runCpuTraining, loadDeployment } from "../src/cpu/runner";
 import {
   architectureToSpec,
@@ -47,14 +46,6 @@ async function main() {
   log.info(`Signer: ${signer.address}`);
   const balanceBefore = await ethers.provider.getBalance(signer.address);
   log.info(`HBAR balance before: ${ethers.formatEther(balanceBefore)}`);
-
-  const topicId = deployment.hcsTopicId || process.env.HCS_TOPIC_ID || "";
-  if (!topicId) {
-    throw new Error(
-      "HCS topic id missing — run npm run deploy or set HCS_TOPIC_ID in deployments/testnet.json"
-    );
-  }
-  log.info(`HCS topic: ${topicId}`);
 
   let samples: TabularSample[];
   let dataHash: string;
@@ -99,7 +90,6 @@ async function main() {
   const result = await runCpuTraining({
     deployment,
     signer,
-    topicId,
     samples,
     dataHash,
     spec,
@@ -108,13 +98,13 @@ async function main() {
 
   log.section("COMPLETE");
   log.info(`Job ID: ${result.jobId}`);
+  log.info(`HCS topic: ${result.hcsTopicId}`);
   log.info(`Program hash: ${result.programHash}`);
   log.info(`Event log hash: ${result.eventLogHash}`);
   log.info(`Manifest: ${result.manifestPath}`);
   log.info(`Ledger TXs: ${result.txHashes.length}`);
   const balanceAfter = await ethers.provider.getBalance(signer.address);
   const spent = balanceBefore - balanceAfter;
-  log.info(`HBAR balance after: ${ethers.formatEther(balanceAfter)}`);
   log.info(`HBAR spent (wallet delta): ${ethers.formatEther(spent)}`);
   log.summary();
 }

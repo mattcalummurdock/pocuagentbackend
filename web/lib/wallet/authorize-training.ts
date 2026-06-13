@@ -4,6 +4,7 @@ import {
   AccountAllowanceApproveTransaction,
   AccountId,
   Hbar,
+  HbarUnit,
   TokenAssociateTransaction,
   TokenId,
   TransferTransaction,
@@ -174,7 +175,7 @@ export async function authorizeTraining(
         .approveHbarAllowance(
           AccountId.fromString(userAccountId),
           AccountId.fromString(agentAccountId),
-          Hbar.from(ALLOWANCE_HBAR)
+          Hbar.from(ALLOWANCE_HBAR, HbarUnit.Hbar)
         )
         .setTransactionMemo(`POCU training allowance ${ALLOWANCE_HBAR} HBAR`),
       "200 HBAR allowance"
@@ -214,8 +215,8 @@ export async function authorizeTraining(
     initiation_tx_id = await walletSignAndExecute(
       userAccountId,
       new TransferTransaction()
-        .addHbarTransfer(AccountId.fromString(userAccountId), Hbar.from(-initFee))
-        .addHbarTransfer(AccountId.fromString(agentAccountId), Hbar.from(initFee))
+        .addHbarTransfer(AccountId.fromString(userAccountId), Hbar.from(-initFee, HbarUnit.Hbar))
+        .addHbarTransfer(AccountId.fromString(agentAccountId), Hbar.from(initFee, HbarUnit.Hbar))
         .setTransactionMemo("ACP job order initiation fee"),
       "ACP initiation fee"
     );

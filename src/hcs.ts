@@ -32,13 +32,19 @@ export async function getOrCreateTopic(): Promise<string> {
     if (cfg.topicId) return cfg.topicId;
   }
 
+  const topicId = await createHcsTopic();
+  mkdirSync("deployments", { recursive: true });
+  writeFileSync(path, JSON.stringify({ topicId, network: "testnet" }, null, 2));
+  return topicId;
+}
+
+/** Create a fresh HCS topic for one training run (never cached/reused). */
+export async function createHcsTopic(log?: StepLogger): Promise<string> {
   const client = getHederaSdkClient();
   const tx = await new TopicCreateTransaction().execute(client);
   const receipt = await tx.getReceipt(client);
   const topicId = receipt.topicId!.toString();
-
-  mkdirSync("deployments", { recursive: true });
-  writeFileSync(path, JSON.stringify({ topicId, network: "testnet" }, null, 2));
+  log?.info(`Created HCS topic for this run: ${topicId}`);
   return topicId;
 }
 

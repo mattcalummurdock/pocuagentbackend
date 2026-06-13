@@ -5,13 +5,17 @@ import { TensorStore } from "./tensor-store";
 export function hashProgram(program: CompiledProgram): string {
   return keccak256(
     new TextEncoder().encode(
-      JSON.stringify(
-        program.instructions.map((i) => ({
+      JSON.stringify({
+        jobId: program.jobId,
+        dataHash: program.dataHash,
+        architecture: program.architecture,
+        instructions: program.instructions.map((i) => ({
           seq: i.seq,
+          op: i.op,
           opcode: i.opcode,
           output: i.output,
-        }))
-      )
+        })),
+      })
     )
   );
 }

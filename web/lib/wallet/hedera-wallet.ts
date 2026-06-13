@@ -43,10 +43,14 @@ async function createConnector(): Promise<DAppConnector> {
     network === "mainnet" ? HederaChainId.Mainnet : HederaChainId.Testnet;
 
   const metadata = {
-    name: "On-Chain CPU Training",
-    description: "POCU Hedera ML training dApp",
+    name: "POCU",
+    description: "POCU — Hedera on-chain ML training",
     url: typeof window !== "undefined" ? window.location.origin : "http://localhost:3001",
-    icons: ["https://avatars.githubusercontent.com/u/31002956"],
+    icons: [
+      typeof window !== "undefined"
+        ? `${window.location.origin}/logo/image.png`
+        : "http://localhost:3001/logo/image.png",
+    ],
   };
 
   console.log("[wallet] init DAppConnector");

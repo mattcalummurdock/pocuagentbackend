@@ -24,6 +24,11 @@ function initZeros(name: string, len: number): CompiledInstruction {
   };
 }
 
+function initSeedFromJob(jobId: string, layerIndex: number): number {
+  const hex = keccak256(toUtf8Bytes(`weight-init:${jobId}:${layerIndex}`));
+  return (parseInt(hex.slice(2, 10), 16) % 10000) + 1;
+}
+
 function initWeight(name: string, rows: number, cols: number, seed: number): CompiledInstruction {
   const len = rows * cols;
   return {
@@ -83,7 +88,7 @@ export function compileMlpProgram(
   for (let li = 0; li < nLayers; li++) {
     const rows = layerDims[li + 1];
     const cols = layerDims[li];
-    const seed = li + 1;
+    const seed = initSeedFromJob(jobId, li);
     const wName = `W${li + 1}`;
     const bName = `b${li + 1}`;
     wIds.push(tensorId(wName));
@@ -377,4 +382,10 @@ export function compileMlpProgram(
 
 export function jobIdFromData(dataHash: string): string {
   return keccak256(toUtf8Bytes(`cpu-job-${dataHash}-${Date.now()}`));
+}
+
+/** Stable bytes32 job id for a specific training run (Supabase job UUID). */
+export function jobIdFromRunId(runId: string, dataHash: string): string {
+  const dh = dataHash.replace(/^0x/i, "");
+  return keccak256(toUtf8Bytes(`cpu-job-${runId}-${dh}`));
 }

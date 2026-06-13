@@ -1,7 +1,7 @@
 import { Contract, Signer, keccak256, solidityPacked } from "ethers";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { DeploymentAddresses } from "../types";
-import { compileMlpProgram, jobIdFromData } from "./compiler";
+import { compileMlpProgram, jobIdFromData, jobIdFromRunId } from "./compiler";
 import { DEFAULT_FRAUD_MLP, MlpModelSpec } from "./models/mlp-spec";
 import { dispatchProgram, registerCpuJob, DispatcherContext } from "./dispatcher";
 import { TabularSample } from "../types";
@@ -15,6 +15,7 @@ import {
   pinManifestJson,
   shouldPinManifest,
 } from "../ipfs/pinata";
+import { createHcsTopic } from "../hcs";
 import {
   resetMppSpendTracker,
   getMppCumulativeSpentHbar,
@@ -28,19 +29,27 @@ export interface TrainResult {
   eventLogHash: string;
   txHashes: string[];
   manifestPath: string;
+  hcsTopicId: string;
 }
 
 export async function runCpuTraining(params: {
   deployment: DeploymentAddresses;
   signer: Signer;
-  topicId: string;
+  /** Override for tests; production creates a fresh topic per run. */
+  topicId?: string;
   samples: TabularSample[];
   dataHash: string;
   spec?: MlpModelSpec;
   log?: StepLogger;
 }): Promise<TrainResult> {
   const spec = params.spec ?? DEFAULT_FRAUD_MLP;
-  const jobId = jobIdFromData(params.dataHash);
+  const runId = process.env.JOB_ID?.trim();
+  const jobId = runId
+    ? jobIdFromRunId(runId, params.dataHash)
+    : jobIdFromData(params.dataHash);
+  const topicId = params.topicId ?? (await createHcsTopic(params.log));
+  params.log?.info(`Run jobId=${jobId.slice(0, 18)}… | HCS topic=${topicId}`);
+
   const program = compileMlpProgram(spec, params.samples, jobId, params.dataHash);
 
   resetMppSpendTracker();
@@ -64,7 +73,7 @@ export async function runCpuTraining(params: {
   const ctx: DispatcherContext = {
     deployment: params.deployment,
     signer: params.signer,
-    topicId: params.topicId,
+    topicId,
     log: params.log,
     mppContext,
     acpOrderId: process.env.ACP_ORDER_ID ?? process.env.JOB_ID,
@@ -111,7 +120,7 @@ export async function runCpuTraining(params: {
       result.programHash,
       result.eventLogHash,
       weightsHash,
-      params.topicId,
+      topicId,
       program.architecture,
       params.samples.length,
       spec.epochs,
@@ -127,10 +136,11 @@ export async function runCpuTraining(params: {
     log: params.log,
   });
 
-  await publishHcsCommit(params.topicId, jobId, result.eventLogHash, params.log);
+  await publishHcsCommit(topicId, jobId, result.eventLogHash, params.log);
 
   const manifest: Record<string, unknown> = {
     jobId,
+    runId: runId ?? null,
     dataHash: params.dataHash,
     programHash: result.programHash,
     eventLogHash: result.eventLogHash,
@@ -140,7 +150,7 @@ export async function runCpuTraining(params: {
     samplesTrained: params.samples.length,
     epochs: spec.epochs,
     trainingTxIds: result.txHashes,
-    hcsTopicId: params.topicId,
+    hcsTopicId: topicId,
     txMatrixSnapshot,
     deployment: params.deployment,
     trainingMode: "onchain-cpu",
@@ -165,6 +175,7 @@ export async function runCpuTraining(params: {
     eventLogHash: result.eventLogHash,
     txHashes: result.txHashes,
     manifestPath,
+    hcsTopicId: topicId,
   };
 }
 

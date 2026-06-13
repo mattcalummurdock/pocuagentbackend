@@ -248,7 +248,7 @@ def mint_model_nft(job: dict[str, Any]) -> dict[str, Any]:
     if isinstance(manifest, dict) and manifest.get("mppTotalSpentHbar"):
         total_spent = float(manifest["mppTotalSpentHbar"])
 
-    topic_id = _load_hcs_topic()
+    topic_id = job.get("hcs_topic_id") or _load_hcs_topic()
     order_id = str(job.get("acp_order_id") or job_id)
     hedera_proof = _publish_acp_complete(
         topic_id,

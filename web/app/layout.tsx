@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
+import { DM_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "../components/WalletProvider";
 import { WalletGate } from "../components/WalletGate";
-import { ConnectWalletButton } from "../components/ConnectWalletButton";
+import { AppShell } from "../components/layout/AppShell";
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains-mono",
+});
 
 export const metadata: Metadata = {
-  title: "On-Chain CPU Training",
-  description: "Hedera Agent Kit + Kaggle on-chain ML training",
+  title: "POCU — On-Chain ML Training",
+  description: "POCU — Hedera agent kit + Kaggle on-chain ML training",
 };
 
 export default function RootLayout({
@@ -16,27 +28,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className={`${dmSans.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <WalletProvider>
           <WalletGate>
-            <header
-              style={{
-                borderBottom: "1px solid var(--border)",
-                padding: "1rem 1.5rem",
-                display: "flex",
-                gap: "1.5rem",
-                alignItems: "center",
-                width: "100%",
-              }}
-            >
-              <strong style={{ fontSize: "1.1rem" }}>On-Chain CPU</strong>
-              <nav style={{ display: "flex", gap: "1rem" }}>
-                <a href="/">Agent</a>
-                <a href="/jobs">Jobs</a>
-              </nav>
-              <ConnectWalletButton />
-            </header>
-            <main className="app-main">{children}</main>
+            <AppShell>{children}</AppShell>
           </WalletGate>
         </WalletProvider>
       </body>
