@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from kaggle_client import download_dataset, inspect_dataset, search_datasets
-from supabase_client import create_job, get_job
+from supabase_client import create_job, get_job, upload_job_prepared_files
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ARCH_PATH = Path(__file__).resolve().parent / "architectures.json"
@@ -217,6 +217,11 @@ def trigger_training_job(
             }
         )
     created = create_job(row)
+    try:
+        upload_job_prepared_files(job_uuid, prepared["metadata_path"])
+    except Exception as exc:
+        # Job row exists; worker will fail with a clear message if download fails.
+        print(f"[agent] Warning: could not upload prepared files to Supabase storage: {exc}")
     return {
         "job_id": created["id"],
         "status": "pending",
