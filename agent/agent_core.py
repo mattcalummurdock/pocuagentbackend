@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import tool
 from langchain_groq import ChatGroq
 
@@ -27,6 +27,7 @@ from tools_impl import (
     search_kaggle_result,
     trigger_training_job,
 )
+from llm_context import compact_tool_result, prune_messages, trim_history, truncate_text
 
 # Hedera Agent Kit
 HEDERA_TOOLS: list = []
@@ -187,13 +188,7 @@ async def _infer_selection(
 ) -> dict[str, str]:
     archs = list_architectures()
     arch_summary = [
-        {
-            "id": a["id"],
-            "name": a["name"],
-            "tier": a["tier"],
-            "taskType": a["taskType"],
-            "description": a.get("description", ""),
-        }
+        {"id": a["id"], "name": a["name"], "tier": a["tier"], "taskType": a["taskType"]}
         for a in archs
     ]
     llm = build_llm()
@@ -437,7 +432,7 @@ async def _pick_best_dataset_for_use_case(
                 HumanMessage(
                     content=(
                         f"Use case: {use_case}\n"
-                        f"Candidates: {json.dumps(datasets, indent=2)}"
+                        f"Candidates: {truncate_text(json.dumps(datasets, indent=2), 4000)}"
                     )
                 ),
             ]
@@ -797,11 +792,11 @@ async def run_agent_chat(
     llm = build_llm().bind_tools(ALL_TOOLS)
     messages: list = [SystemMessage(content=SYSTEM_PROMPT)]
     if history:
-        for h in history:
+        for h in trim_history(history):
             if h.get("role") == "user":
                 messages.append(HumanMessage(content=h["content"]))
             elif h.get("role") == "assistant":
-                messages.append(SystemMessage(content=h["content"]))
+                messages.append(AIMessage(content=h["content"]))
     user_content = (
         f"=== Current UI selection (authoritative) ===\n{selection_ctx}\n\n"
         f"User message: {message}\n\n"
@@ -810,9 +805,10 @@ async def run_agent_chat(
     messages.append(HumanMessage(content=user_content))
 
     tool_map = {t.name: t for t in ALL_TOOLS}
-    max_steps = 12
+    max_steps = 8
 
     for _ in range(max_steps):
+        messages = prune_messages(messages)
         response = await llm.ainvoke(messages)
         messages.append(response)
 
@@ -836,9 +832,13 @@ async def run_agent_chat(
             if ui_event:
                 yield ui_event
             messages.append(
-                ToolMessage(content=str(result), tool_call_id=tc.get("id", name))
+                ToolMessage(
+                    content=compact_tool_result(name, str(result)),
+                    tool_call_id=tc.get("id", name),
+                )
             )
 
+        messages = prune_messages(messages)
         final = await llm.ainvoke(messages)
         messages.append(final)
         if final.content:
