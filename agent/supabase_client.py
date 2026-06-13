@@ -200,6 +200,8 @@ def save_message(
 
 
 def messages_to_agent_history(messages: list[dict[str, Any]]) -> list[dict[str, str]]:
+    from llm_context import trim_history
+
     history: list[dict[str, str]] = []
     for row in messages:
         role = row.get("role", "user")
@@ -211,7 +213,7 @@ def messages_to_agent_history(messages: list[dict[str, Any]]) -> list[dict[str, 
             text = row.get("content") or ""
         if text.strip():
             history.append({"role": role, "content": text})
-    return history
+    return trim_history(history)
 
 
 def message_row_to_chat_block(row: dict[str, Any]) -> dict[str, Any]:
