@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Optional
 
 from supabase import Client, create_client
@@ -13,6 +14,35 @@ def get_supabase() -> Client:
     if not url or not key:
         raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY required")
     return create_client(url, key)
+
+
+JOB_DATA_BUCKET = "job-data"
+
+
+def upload_job_prepared_files(
+    job_id: str,
+    metadata_path: str,
+    csv_path: str = "",
+) -> None:
+    """Upload preprocess artifacts so the Cloud Run worker can download them."""
+    meta = json.loads(Path(metadata_path).read_text(encoding="utf-8"))
+    prepared_csv = csv_path or str(meta.get("outputCsvPath") or "")
+    if not prepared_csv or not Path(prepared_csv).is_file():
+        raise FileNotFoundError(f"Prepared CSV not found: {prepared_csv!r}")
+
+    sb = get_supabase()
+    meta_bytes = Path(metadata_path).read_bytes()
+    csv_bytes = Path(prepared_csv).read_bytes()
+    sb.storage.from_(JOB_DATA_BUCKET).upload(
+        f"{job_id}/meta.json",
+        meta_bytes,
+        {"content-type": "application/json", "upsert": "true"},
+    )
+    sb.storage.from_(JOB_DATA_BUCKET).upload(
+        f"{job_id}/prepared.csv",
+        csv_bytes,
+        {"content-type": "text/csv", "upsert": "true"},
+    )
 
 
 def create_job(row: dict[str, Any]) -> dict[str, Any]:
