@@ -16,7 +16,48 @@ def get_supabase() -> Client:
     return create_client(url, key)
 
 
-JOB_DATA_BUCKET = "job-data"
+JOB_DATA_BUCKET = os.getenv("JOB_DATA_BUCKET", "job-data")
+
+
+def ensure_job_data_bucket() -> None:
+    """Create the job-data bucket if it does not exist (service role required)."""
+    sb = get_supabase()
+    bucket_exists = False
+    try:
+        sb.storage.get_bucket(JOB_DATA_BUCKET)
+        bucket_exists = True
+    except Exception:
+        try:
+            buckets = sb.storage.list_buckets()
+            names = {b.get("name") or b.get("id") for b in (buckets or [])}
+            bucket_exists = JOB_DATA_BUCKET in names
+        except Exception:
+            bucket_exists = False
+
+    if bucket_exists:
+        return
+
+    try:
+        sb.storage.create_bucket(JOB_DATA_BUCKET, options={"public": False})
+        print(f"[agent] Created Supabase storage bucket: {JOB_DATA_BUCKET}")
+    except Exception as exc:
+        err = str(exc).lower()
+        if "already exists" in err or "duplicate" in err:
+            return
+        raise RuntimeError(
+            f"Supabase storage bucket '{JOB_DATA_BUCKET}' is missing and could not be created: {exc}. "
+            f"Create it manually in Supabase → Storage → New bucket → name it '{JOB_DATA_BUCKET}'."
+        ) from exc
+
+
+def _storage_upload(bucket: str, path: str, payload: bytes, content_type: str) -> None:
+    sb = get_supabase()
+    opts = {"content-type": content_type, "x-upsert": "true"}
+    storage = sb.storage.from_(bucket)
+    try:
+        storage.upload(path, payload, file_options=opts)
+    except TypeError:
+        storage.upload(path, payload, opts)
 
 
 def upload_job_prepared_files(
@@ -30,19 +71,12 @@ def upload_job_prepared_files(
     if not prepared_csv or not Path(prepared_csv).is_file():
         raise FileNotFoundError(f"Prepared CSV not found: {prepared_csv!r}")
 
-    sb = get_supabase()
+    ensure_job_data_bucket()
     meta_bytes = Path(metadata_path).read_bytes()
     csv_bytes = Path(prepared_csv).read_bytes()
-    sb.storage.from_(JOB_DATA_BUCKET).upload(
-        f"{job_id}/meta.json",
-        meta_bytes,
-        {"content-type": "application/json", "upsert": "true"},
-    )
-    sb.storage.from_(JOB_DATA_BUCKET).upload(
-        f"{job_id}/prepared.csv",
-        csv_bytes,
-        {"content-type": "text/csv", "upsert": "true"},
-    )
+    _storage_upload(JOB_DATA_BUCKET, f"{job_id}/meta.json", meta_bytes, "application/json")
+    _storage_upload(JOB_DATA_BUCKET, f"{job_id}/prepared.csv", csv_bytes, "text/csv")
+    print(f"[agent] Uploaded prepared data to {JOB_DATA_BUCKET}/{job_id}/")
 
 
 def create_job(row: dict[str, Any]) -> dict[str, Any]:
