@@ -181,7 +181,7 @@ def trigger_training_job(
 ) -> dict[str, Any]:
     arch = get_architecture(architecture_id)
     job_uuid = prepared.get("job_id") or str(uuid.uuid4())
-    manifest_path = str(REPO_ROOT / "output" / f"{job_uuid}_manifest.json")
+    manifest_path = f"output/{job_uuid}_manifest.json"
 
     row: dict[str, Any] = {
         "id": job_uuid,
